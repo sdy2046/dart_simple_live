@@ -12,12 +12,14 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '17' # 使用 Java 17
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0' # 请务必确认原项目要求的精确版本！
+          flutter-version: '3.22.0'
           channel: 'stable'
+      - run: flutter --version
+      - run: flutter doctor
       - run: flutter pub get
         working-directory: ./simple_live_app
       - run: flutter build apk --release
@@ -29,23 +31,46 @@ jobs:
 
   build-windows:
     name: Build Windows ZIP
-    runs-on: windows-latest # 使用 Windows 环境
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0' # 请务必确认原项目要求的精确版本！
+          flutter-version: '3.22.0'
           channel: 'stable'
-          architecture: x64 # 构建 64 位应用
+          architecture: x64
+      - run: flutter --version
+      - run: flutter doctor
       - run: flutter pub get
         working-directory: ./simple_live_app
       - run: flutter build windows --release
         working-directory: ./simple_live_app
+      - name: Check build directory
+        run: |
+          Get-ChildItem -Path "simple_live_app/build" -Recurse -Directory | Select-Object FullName
       - name: Create ZIP for Windows
         run: |
-          cd simple_live_app/build/windows/runner
-          Compress-Archive -Path Release/* -DestinationPath ../../../../simple_live_windows.zip -Force
+          $sourceDir = "simple_live_app/build/windows/runner/Release"
+          if (Test-Path $sourceDir) {
+            Write-Host "Release directory found, creating ZIP..."
+            Compress-Archive -Path "$sourceDir/*" -DestinationPath "simple_live_windows.zip" -Force
+          } else {
+            Write-Host "Release directory not found, checking alternative locations..."
+            # 检查其他可能的目录结构
+            $altDirs = @(
+              "simple_live_app/build/windows/x64/runner/Release",
+              "simple_live_app/build/windows/runner/Release",
+              "simple_live_app/build/windows"
+            )
+            foreach ($dir in $altDirs) {
+              if (Test-Path $dir) {
+                Write-Host "Found directory: $dir"
+                Compress-Archive -Path "$dir/*" -DestinationPath "simple_live_windows.zip" -Force
+                break
+              }
+            }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: Windows-Portable-ZIP
