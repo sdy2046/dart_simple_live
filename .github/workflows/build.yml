@@ -1,0 +1,52 @@
+name: Build APK and Windows ZIP
+
+on:
+  workflow_dispatch: # 设置为手动触发，方便你随时编译
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0' # 请务必确认原项目要求的精确版本！
+          channel: 'stable'
+      - run: flutter pub get
+        working-directory: ./simple_live_app
+      - run: flutter build apk --release
+        working-directory: ./simple_live_app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Android-Release-APK
+          path: simple_live_app/build/app/outputs/flutter-apk/app-release.apk
+
+  build-windows:
+    name: Build Windows ZIP
+    runs-on: windows-latest # 使用 Windows 环境
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0' # 请务必确认原项目要求的精确版本！
+          channel: 'stable'
+          architecture: x64 # 构建 64 位应用
+      - run: flutter pub get
+        working-directory: ./simple_live_app
+      - run: flutter build windows --release
+        working-directory: ./simple_live_app
+      - name: Create ZIP for Windows
+        run: |
+          cd simple_live_app/build/windows/runner
+          Compress-Archive -Path Release/* -DestinationPath ../../../../simple_live_windows.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Portable-ZIP
+          path: simple_live_windows.zip
